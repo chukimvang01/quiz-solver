@@ -8,16 +8,16 @@
   let el = null;
   let timer = null;
 
-  // Lưu selection vào window để executeScript đọc được
-  window.__qsSel = '';
-  document.addEventListener('mouseup', () => {
+  // Gửi selection cho worker mỗi khi thay đổi
+  document.addEventListener('mouseup', sendSelection);
+  document.addEventListener('selectionchange', sendSelection);
+
+  function sendSelection() {
     const s = window.getSelection().toString().trim();
-    if (s.length > 0) window.__qsSel = s;
-  });
-  document.addEventListener('selectionchange', () => {
-    const s = window.getSelection().toString().trim();
-    if (s.length > 0) window.__qsSel = s;
-  });
+    if (s.length > 2) {
+      chrome.runtime.sendMessage({ action: 'selection', text: s }).catch(() => {});
+    }
+  }
 
   // === OVERLAY (chỉ top frame) ===
   function getEl() {
