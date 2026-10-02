@@ -1,4 +1,4 @@
-// Service Worker — lấy selection trực tiếp từ tất cả frames
+// Service Worker
 
 const BRIDGE = 'http://127.0.0.1:3847';
 
@@ -9,32 +9,45 @@ chrome.commands.onCommand.addListener(async (cmd) => {
   console.log('[QS] Ctrl+Q pressed');
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) return;
-
-  // Lấy selection từ TẤT CẢ frames trong tab
-  let results;
-  try {
-    results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id, allFrames: true },
-      func: () => window.getSelection().toString().trim(),
-    });
-  } catch (e) {
-    console.error('[QS] Cannot access tab:', e.message);
+  console.log('[QS] Tab:', tab?.id, tab?.url?.substring(0, 50));
+  if (!tab?.id) {
+    console.error('[QS] No active tab');
     return;
   }
 
-  // Tìm frame có selection dài nhất
-  const text = results
-    .map(r => r.result || '')
-    .filter(s => s.length > 0)
-    .sort((a, b) => b.length - a.length)[0];
+  let text = '';
 
-  console.log('[QS] Selection found:', text?.length || 0, 'chars');
+  // Phương án 1: executeScript lấy selection trực tiếp
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id, allFrames: true },
+      func: () => window.getSelection().toString().trim(),
+    });
+    console.log('[QS] executeScript results:', results.map(r => r.result?.length || 0));
+    text = results
+      .map(r => r.result || '')
+      .filter(s => s.length > 0)
+      .sort((a, b) => b.length - a.length)[0] || '';
+  } catch (e) {
+    console.warn('[QS] executeScript failed:', e.message);
+    // Phương án 2: hỏi content script
+    try {
+      const res = await chrome.tabs.sendMessage(tab.id, { action: 'get-selection' });
+      text = res?.text || '';
+      console.log('[QS] Content script selection:', text.length);
+    } catch (e2) {
+      console.error('[QS] Both methods failed:', e2.message);
+    }
+  }
+
+  console.log('[QS] Final selection:', text.length, 'chars');
+  if (text.length > 0) {
+    console.log('[QS] Preview:', text.substring(0, 100));
+  }
 
   if (!text || text.length < 3) {
-    console.warn('[QS] No selection found in any frame');
-    chrome.tabs.sendMessage(tab.id, { action: 'show-error' }).catch(() => {});
-    return;
+    console.warn('[QS] No selection');
+    return; // Không hiện gì cả nếu chưa select
   }
 
   // Hiện loading
@@ -61,7 +74,7 @@ chrome.commands.onCommand.addListener(async (cmd) => {
     console.error('[QS] Bridge error:', e.message);
     chrome.tabs.sendMessage(tab.id, {
       action: 'show-answer',
-      error: e.name === 'TimeoutError' ? 'Timeout' : 'No connection',
+      error: '!!!',
     }).catch(() => {});
   }
 });
