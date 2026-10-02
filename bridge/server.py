@@ -67,27 +67,62 @@ def prepare(text):
 
 def parse(raw):
     """Trích xuất số đáp án từ output Kiro CLI."""
-    lines = [l for l in raw.strip().split('\n') if l.strip()]
-    last = lines[-1] if lines else ''
-    nums = re.findall(r'\d+', last)
-    if nums:
-        return ','.join(nums)
-    letters = re.findall(r'[A-Da-d]', last)
-    if letters:
-        return ','.join(str(ord(l.upper()) - 64) for l in letters)
-    return last.strip()
+    text = raw.strip()
+    lines = [l.strip() for l in text.split('\n') if l.strip()]
+
+    # 1. Tìm dòng CHỈ chứa số và dấu phẩy (ví dụ: "2" hoặc "1,3")
+    for line in reversed(lines):
+        clean = line.strip(' .')
+        if re.fullmatch(r'[\d,\s]+', clean):
+            nums = re.findall(r'\d+', clean)
+            valid = [n for n in nums if 1 <= int(n) <= 20]
+            if valid:
+                return ','.join(valid)
+
+    # 2. Tìm dòng CHỈ chứa chữ cái đáp án (ví dụ: "B" hoặc "A, C")
+    for line in reversed(lines):
+        clean = line.strip(' .')
+        if re.fullmatch(r'[A-Da-d,\s]+', clean):
+            letters = re.findall(r'[A-Da-d]', clean)
+            if letters:
+                return ','.join(str(ord(l.upper()) - 64) for l in letters)
+
+    # 3. Fallback: tìm số trong khoảng 1-20 ở dòng cuối
+    for line in reversed(lines):
+        nums = re.findall(r'\b(\d{1,2})\b', line)
+        valid = [n for n in nums if 1 <= int(n) <= 20]
+        if valid:
+            return ','.join(valid)
+
+    return lines[-1] if lines else '?'
 
 
 def ask(text):
     content = prepare(text)
     prompt = PROMPT.format(content=content)
+
+    print(f'\n--- PREPARED CONTENT ---')
+    print(content)
+    print(f'--- END CONTENT ---\n')
+
     r = subprocess.run(
         [KIRO, 'chat', '--no-interactive', prompt],
         capture_output=True, text=True, timeout=TIMEOUT
     )
+
+    print(f'--- KIRO RAW OUTPUT ---')
+    print(r.stdout)
+    if r.stderr:
+        print(f'--- KIRO STDERR ---')
+        print(r.stderr)
+    print(f'--- END OUTPUT ---\n')
+
     if r.returncode != 0:
         raise Exception(r.stderr or f'exit code {r.returncode}')
-    return parse(r.stdout)
+
+    answer = parse(r.stdout)
+    print(f'>>> PARSED ANSWER: {answer}')
+    return answer
 
 
 class Handler(BaseHTTPRequestHandler):
