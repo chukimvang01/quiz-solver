@@ -61,6 +61,31 @@ def prepare(text):
     return question + '\n' + '\n'.join(numbered)
 
 
+def extract_answer(raw):
+    """Lọc chỉ lấy số đáp án từ output Kiro CLI, bỏ mọi text giải thích."""
+    lines = [l.strip() for l in raw.strip().split('\n') if l.strip()]
+
+    # Tìm dòng CHỈ chứa số và dấu phẩy (ví dụ: "2" hoặc "1, 3")
+    for line in reversed(lines):
+        clean = line.strip(' .')
+        if re.fullmatch(r'[\d,\s]+', clean):
+            return clean.replace(' ', '')
+
+    # Tìm dòng CHỈ chứa chữ cái đáp án (ví dụ: "B" hoặc "A, C")
+    for line in reversed(lines):
+        clean = line.strip(' .')
+        if re.fullmatch(r'[A-Da-d][,\s]*(?:[A-Da-d][,\s]*)*', clean):
+            return clean.replace(' ', '')
+
+    # Fallback: lấy dòng cuối, chỉ giữ số và phẩy
+    for line in reversed(lines):
+        nums = re.findall(r'\b([1-9])\b', line)
+        if nums:
+            return ','.join(nums)
+
+    return '?'
+
+
 def ask(text):
     content = prepare(text)
     prompt = PROMPT.format(content=content)
@@ -81,7 +106,7 @@ def ask(text):
     if r.returncode != 0:
         raise Exception(r.stderr or f'exit code {r.returncode}')
 
-    answer = r.stdout.strip()
+    answer = extract_answer(r.stdout)
     print(f'>>> ANSWER: {answer}')
     return answer
 
