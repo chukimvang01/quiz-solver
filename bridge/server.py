@@ -16,35 +16,25 @@ NO explanation. NO extra text. ONLY numbers.
 
 Answer:'''
 
-# Regex: dòng đã có đánh số/chữ cái đầu (1. / A. / a) / 1) / A) ...)
 RE_NUMBERED = re.compile(r'^\s*(?:[1-9]\d?|[A-Da-d])\s*[.):\]\-]\s*\S')
-# Regex: ký tự bullet/separator đầu dòng
 RE_BULLET = re.compile(r'^\s*[•●○◦▪▸►–—\-\*]\s*')
 
 
 def prepare(text):
-    """
-    Tự đánh số đáp án nếu chưa có.
-    Tách câu hỏi (phần đầu) và đáp án (các dòng còn lại).
-    """
     lines = [l for l in text.split('\n') if l.strip()]
     if not lines:
         return text
 
-    # Kiểm tra đã có đánh số chưa
     numbered_count = sum(1 for l in lines if RE_NUMBERED.match(l))
     if numbered_count >= 2:
-        # Đã có đánh số → giữ nguyên
         return text
 
-    # Tìm dòng câu hỏi (thường là dòng dài nhất hoặc dòng kết thúc bằng ?)
     q_end = 0
     for i, l in enumerate(lines):
         s = l.strip()
         if s.endswith('?') or s.endswith(':'):
             q_end = i + 1
             break
-    # Nếu không tìm thấy dấu ? hay : → dòng đầu là câu hỏi
     if q_end == 0:
         q_end = 1
 
@@ -54,47 +44,13 @@ def prepare(text):
     if not options:
         return text
 
-    # Đánh số các đáp án
     numbered = []
     for idx, opt in enumerate(options, 1):
         clean = RE_BULLET.sub('', opt).strip()
-        # Bỏ số/chữ cái đầu nếu có nhưng không đủ pattern
         clean = re.sub(r'^\s*(?:[1-9]\d?|[A-Da-d])\s*[.):\]\-]?\s*', '', clean).strip() or clean
         numbered.append(f'{idx}. {clean}')
 
     return question + '\n' + '\n'.join(numbered)
-
-
-def parse(raw):
-    """Trích xuất số đáp án từ output Kiro CLI."""
-    text = raw.strip()
-    lines = [l.strip() for l in text.split('\n') if l.strip()]
-
-    # 1. Tìm dòng CHỈ chứa số và dấu phẩy (ví dụ: "2" hoặc "1,3")
-    for line in reversed(lines):
-        clean = line.strip(' .')
-        if re.fullmatch(r'[\d,\s]+', clean):
-            nums = re.findall(r'\d+', clean)
-            valid = [n for n in nums if 1 <= int(n) <= 20]
-            if valid:
-                return ','.join(valid)
-
-    # 2. Tìm dòng CHỈ chứa chữ cái đáp án (ví dụ: "B" hoặc "A, C")
-    for line in reversed(lines):
-        clean = line.strip(' .')
-        if re.fullmatch(r'[A-Da-d,\s]+', clean):
-            letters = re.findall(r'[A-Da-d]', clean)
-            if letters:
-                return ','.join(str(ord(l.upper()) - 64) for l in letters)
-
-    # 3. Fallback: tìm số trong khoảng 1-20 ở dòng cuối
-    for line in reversed(lines):
-        nums = re.findall(r'\b(\d{1,2})\b', line)
-        valid = [n for n in nums if 1 <= int(n) <= 20]
-        if valid:
-            return ','.join(valid)
-
-    return lines[-1] if lines else '?'
 
 
 def ask(text):
@@ -112,16 +68,13 @@ def ask(text):
 
     print(f'--- KIRO RAW OUTPUT ---')
     print(r.stdout)
-    if r.stderr:
-        print(f'--- KIRO STDERR ---')
-        print(r.stderr)
     print(f'--- END OUTPUT ---\n')
 
     if r.returncode != 0:
         raise Exception(r.stderr or f'exit code {r.returncode}')
 
-    answer = parse(r.stdout)
-    print(f'>>> PARSED ANSWER: {answer}')
+    answer = r.stdout.strip()
+    print(f'>>> ANSWER: {answer}')
     return answer
 
 
