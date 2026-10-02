@@ -24,75 +24,30 @@ Examples: "2" or "1,3" or "4"
 
 Answer:'''
 
-RE_NUMBERED = re.compile(r'^\s*(?:[1-9]\d?|[A-Da-d])\s*[.):\]\-]\s*\S')
-RE_BULLET = re.compile(r'^\s*[•●○◦▪▸►–—\-\*]\s*')
-
-
-def prepare(text):
-    lines = [l for l in text.split('\n') if l.strip()]
-    if not lines:
-        return text
-
-    numbered_count = sum(1 for l in lines if RE_NUMBERED.match(l))
-    if numbered_count >= 2:
-        return text
-
-    q_end = 0
-    for i, l in enumerate(lines):
-        s = l.strip()
-        if s.endswith('?') or s.endswith(':'):
-            q_end = i + 1
-            break
-    if q_end == 0:
-        q_end = 1
-
-    question = '\n'.join(lines[:q_end])
-    options = lines[q_end:]
-
-    if not options:
-        return text
-
-    numbered = []
-    for idx, opt in enumerate(options, 1):
-        clean = RE_BULLET.sub('', opt).strip()
-        clean = re.sub(r'^\s*(?:[1-9]\d?|[A-Da-d])\s*[.):\]\-]?\s*', '', clean).strip() or clean
-        numbered.append(f'{idx}. {clean}')
-
-    return question + '\n' + '\n'.join(numbered)
-
 
 def extract_answer(raw):
-    """Lọc chỉ lấy số đáp án từ output Kiro CLI, bỏ mọi text giải thích."""
+    """Lấy chỉ số/chữ đáp án, bỏ text giải thích."""
     lines = [l.strip() for l in raw.strip().split('\n') if l.strip()]
-
-    # Tìm dòng CHỈ chứa số và dấu phẩy (ví dụ: "2" hoặc "1, 3")
+    # Tìm dòng chỉ chứa số + phẩy
     for line in reversed(lines):
-        clean = line.strip(' .')
-        if re.fullmatch(r'[\d,\s]+', clean):
-            return clean.replace(' ', '')
-
-    # Tìm dòng CHỈ chứa chữ cái đáp án (ví dụ: "B" hoặc "A, C")
+        c = line.strip(' .')
+        if re.fullmatch(r'[\d,\s]+', c):
+            return c.replace(' ', '')
+    # Tìm dòng chỉ chứa A-D
     for line in reversed(lines):
-        clean = line.strip(' .')
-        if re.fullmatch(r'[A-Da-d][,\s]*(?:[A-Da-d][,\s]*)*', clean):
-            return clean.replace(' ', '')
-
-    # Fallback: lấy dòng cuối, chỉ giữ số và phẩy
-    for line in reversed(lines):
-        nums = re.findall(r'\b([1-9])\b', line)
-        if nums:
-            return ','.join(nums)
-
-    return '?'
+        c = line.strip(' .')
+        if re.fullmatch(r'[A-Da-d][,\s]*(?:[A-Da-d][,\s]*)*', c):
+            return c.replace(' ', '')
+    # Fallback: lấy dòng cuối
+    return lines[-1].strip() if lines else '?'
 
 
 def ask(text):
-    content = prepare(text)
-    prompt = PROMPT.format(content=content)
+    prompt = PROMPT.format(content=text)
 
-    print(f'\n--- PREPARED CONTENT ---')
-    print(content)
-    print(f'--- END CONTENT ---\n')
+    print(f'\n--- RAW INPUT ---')
+    print(text)
+    print(f'--- END INPUT ---\n')
 
     r = subprocess.run(
         [KIRO, 'chat', '--no-interactive', prompt],
