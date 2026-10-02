@@ -24,10 +24,15 @@ Examples: "2" or "1,3" or "4"
 
 Answer:'''
 
+RE_ANSI = re.compile(r'\x1b\[[0-9;]*m|\x1b\[[0-9;]*[A-Za-z]')
 
 def extract_answer(raw):
-    """Lấy chỉ số/chữ đáp án, bỏ text giải thích."""
-    lines = [l.strip() for l in raw.strip().split('\n') if l.strip()]
+    """Lấy chỉ số/chữ đáp án, bỏ ANSI codes và text giải thích."""
+    # Strip mã màu terminal
+    clean = RE_ANSI.sub('', raw)
+    # Bỏ ký tự đặc biệt còn sót (> , ─ , etc.)
+    clean = re.sub(r'[>─│┌┐└┘├┤┬┴┼]', '', clean)
+    lines = [l.strip() for l in clean.strip().split('\n') if l.strip()]
     # Tìm dòng chỉ chứa số + phẩy
     for line in reversed(lines):
         c = line.strip(' .')
