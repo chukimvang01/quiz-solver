@@ -7,6 +7,20 @@
 
   let el = null;
   let timer = null;
+  let lastSelection = '';
+
+  // Lưu selection liên tục để không bị mất khi nhấn phím tắt
+  document.addEventListener('mouseup', saveSelection);
+  document.addEventListener('keyup', saveSelection);
+  document.addEventListener('selectionchange', saveSelection);
+
+  function saveSelection() {
+    const s = window.getSelection().toString().trim();
+    if (s.length > 0) {
+      lastSelection = s;
+      console.log('[QS] Selection saved, length:', s.length);
+    }
+  }
 
   function getEl() {
     if (el) return el;
@@ -33,10 +47,15 @@
   }
 
   async function solve() {
-    const text = window.getSelection().toString().trim();
-    console.log('[QS] Solve triggered, selection length:', text.length);
+    // Dùng selection hiện tại, nếu trống thì dùng selection đã lưu
+    let text = window.getSelection().toString().trim();
+    console.log('[QS] Current selection length:', text.length);
+    if (text.length < 15) {
+      text = lastSelection;
+      console.log('[QS] Using saved selection, length:', text.length);
+    }
     if (text.length > 0) {
-      console.log('[QS] Selected text preview:', text.substring(0, 100) + '...');
+      console.log('[QS] Text preview:', text.substring(0, 100));
     }
     if (text.length < 15) {
       console.warn('[QS] Selection too short (< 15 chars), skipping');
@@ -66,6 +85,9 @@
       console.error('[QS] Solve failed:', e.message);
       show('!!!', 'er');
     }
+
+    // Reset sau khi dùng
+    lastSelection = '';
   }
 
   chrome.runtime.onMessage.addListener((msg) => {
