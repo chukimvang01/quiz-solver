@@ -1,0 +1,36 @@
+#__qs {
+  all: initial !important;
+  position: fixed !important;
+  top: 6px !important;
+  right: 10px !important;
+  z-index: 2147483647 !important;
+  font: 500 11px/1 -apple-system, system-ui, sans-serif !important;
+  letter-spacing: .5px !important;
+  padding: 2px 5px !important;
+  color: rgba(130,130,130,.65) !important;
+  background: none !important;
+  border: none !important;
+  border-radius: 2px !important;
+  pointer-events: auto !important;
+  cursor: default !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  transition: opacity .25s !important;
+}
+#__qs:hover {
+  opacity: .9 !important;
+}
+#__qs.hd {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+#__qs.ld {
+  animation: __qsp 1s ease-in-out infinite !important;
+}
+#__qs.er {
+  color: rgba(190,70,70,.5) !important;
+}
+@keyframes __qsp {
+  0%,100% { opacity: .35 }
+  50% { opacity: 1 }
+}
