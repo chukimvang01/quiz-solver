@@ -10,7 +10,6 @@
   let timer = null;
   let lastSelection = '';
 
-  // Lưu selection liên tục
   document.addEventListener('mouseup', saveSelection);
   document.addEventListener('selectionchange', saveSelection);
 
@@ -21,7 +20,6 @@
     }
   }
 
-  // === OVERLAY (chỉ top frame mới tạo) ===
   function getEl() {
     if (el) return el;
     if (!isTop) return null;
@@ -50,37 +48,32 @@
     clearTimeout(timer);
   }
 
-  // === SOLVE (mọi frame đều có thể trigger) ===
   async function solve() {
     let text = window.getSelection().toString().trim();
     console.log('[QS] Solve, current selection:', text.length);
-    if (text.length < 15) {
+    if (text.length < 5) {
       text = lastSelection;
       console.log('[QS] Using saved selection:', text.length);
     }
-    if (text.length < 15) {
+    if (text.length < 5) {
       console.warn('[QS] Too short, skip');
       return;
     }
 
-    // Báo top frame hiện loading
     if (isTop) {
       show('···', 'ld');
     } else {
       chrome.runtime.sendMessage({ action: 'show-loading' });
     }
 
-    // Gửi cho worker xử lý
     chrome.runtime.sendMessage({ action: 'ask', text });
     lastSelection = '';
   }
 
-  // === LẮNG NGHE MESSAGES ===
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.action === 'solve') {
       solve();
     }
-    // Chỉ top frame xử lý hiển thị
     if (isTop && msg.action === 'show-answer') {
       if (msg.error) {
         show('!!!', 'er');
