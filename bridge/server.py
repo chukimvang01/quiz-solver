@@ -1,20 +1,72 @@
 import json
 import subprocess
+import re
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 KIRO = 'kiro-cli'
 TIMEOUT = 60
 
-PROMPT_PREFIX = '''You are a quiz-answering AI.
+PROMPT = '''You are a quiz-answering AI.
+The question and NUMBERED answer options are below.
 RULES: Respond ONLY with the number(s) of the correct answer(s).
 Multiple answers: separate with commas. Example: "2" or "1,3".
 NO explanation. NO extra text. ONLY numbers.
 
-'''
+{content}
 
-import re
+Answer:'''
+
+# Regex: dòng đã có đánh số/chữ cái đầu (1. / A. / a) / 1) / A) ...)
+RE_NUMBERED = re.compile(r'^\s*(?:[1-9]\d?|[A-Da-d])\s*[.):\]\-]\s*\S')
+# Regex: ký tự bullet/separator đầu dòng
+RE_BULLET = re.compile(r'^\s*[•●○◦▪▸►–—\-\*]\s*')
+
+
+def prepare(text):
+    """
+    Tự đánh số đáp án nếu chưa có.
+    Tách câu hỏi (phần đầu) và đáp án (các dòng còn lại).
+    """
+    lines = [l for l in text.split('\n') if l.strip()]
+    if not lines:
+        return text
+
+    # Kiểm tra đã có đánh số chưa
+    numbered_count = sum(1 for l in lines if RE_NUMBERED.match(l))
+    if numbered_count >= 2:
+        # Đã có đánh số → giữ nguyên
+        return text
+
+    # Tìm dòng câu hỏi (thường là dòng dài nhất hoặc dòng kết thúc bằng ?)
+    q_end = 0
+    for i, l in enumerate(lines):
+        s = l.strip()
+        if s.endswith('?') or s.endswith(':'):
+            q_end = i + 1
+            break
+    # Nếu không tìm thấy dấu ? hay : → dòng đầu là câu hỏi
+    if q_end == 0:
+        q_end = 1
+
+    question = '\n'.join(lines[:q_end])
+    options = lines[q_end:]
+
+    if not options:
+        return text
+
+    # Đánh số các đáp án
+    numbered = []
+    for idx, opt in enumerate(options, 1):
+        clean = RE_BULLET.sub('', opt).strip()
+        # Bỏ số/chữ cái đầu nếu có nhưng không đủ pattern
+        clean = re.sub(r'^\s*(?:[1-9]\d?|[A-Da-d])\s*[.):\]\-]?\s*', '', clean).strip() or clean
+        numbered.append(f'{idx}. {clean}')
+
+    return question + '\n' + '\n'.join(numbered)
+
 
 def parse(raw):
+    """Trích xuất số đáp án từ output Kiro CLI."""
     lines = [l for l in raw.strip().split('\n') if l.strip()]
     last = lines[-1] if lines else ''
     nums = re.findall(r'\d+', last)
@@ -27,7 +79,8 @@ def parse(raw):
 
 
 def ask(text):
-    prompt = PROMPT_PREFIX + text + '\n\nAnswer:'
+    content = prepare(text)
+    prompt = PROMPT.format(content=content)
     r = subprocess.run(
         [KIRO, 'chat', '--no-interactive', prompt],
         capture_output=True, text=True, timeout=TIMEOUT
