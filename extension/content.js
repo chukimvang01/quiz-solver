@@ -7,16 +7,17 @@
 
   let el = null;
   let timer = null;
-  let lastSelection = '';
 
-  // Lưu selection liên tục (mọi frame)
-  document.addEventListener('mouseup', saveSelection);
-  document.addEventListener('selectionchange', saveSelection);
-
-  function saveSelection() {
+  // Lưu selection vào window để executeScript đọc được
+  window.__qsSel = '';
+  document.addEventListener('mouseup', () => {
     const s = window.getSelection().toString().trim();
-    if (s.length > 0) lastSelection = s;
-  }
+    if (s.length > 0) window.__qsSel = s;
+  });
+  document.addEventListener('selectionchange', () => {
+    const s = window.getSelection().toString().trim();
+    if (s.length > 0) window.__qsSel = s;
+  });
 
   // === OVERLAY (chỉ top frame) ===
   function getEl() {
@@ -46,22 +47,11 @@
     clearTimeout(timer);
   }
 
-  // === MESSAGE HANDLER ===
-  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    // Worker hỏi lấy selection (fallback)
-    if (msg.action === 'get-selection') {
-      const text = window.getSelection().toString().trim() || lastSelection;
-      sendResponse({ text });
-      return;
-    }
-    // Hiển thị
+  chrome.runtime.onMessage.addListener((msg) => {
     if (msg.action === 'show-loading') show('···', 'ld');
     if (msg.action === 'show-answer') {
-      if (msg.error) {
-        show('!!!', 'er');
-      } else if (msg.answer) {
-        show(msg.answer);
-      }
+      if (msg.error) show('!!!', 'er');
+      else if (msg.answer) show(msg.answer);
     }
   });
 })();
