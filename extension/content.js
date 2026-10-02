@@ -32,7 +32,7 @@
     const text = window.getSelection().toString().trim();
     if (text.length < 15) return;
 
-    show('·', 'ld');
+    show('···', 'ld');
 
     try {
       const res = await new Promise((ok, no) => {
@@ -44,7 +44,7 @@
       });
       show(res.answer);
     } catch {
-      show('✗', 'er');
+      show('!!!', 'er');
     }
   }
 
