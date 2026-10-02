@@ -6,13 +6,21 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 KIRO = 'kiro-cli'
 TIMEOUT = 60
 
-PROMPT = '''You are a quiz-answering AI.
-The question and NUMBERED answer options are below.
-RULES: Respond ONLY with the number(s) of the correct answer(s).
-Multiple answers: separate with commas. Example: "2" or "1,3".
-NO explanation. NO extra text. ONLY numbers.
+PROMPT = '''You are an expert quiz-solving AI. Below is raw text copied from a quiz screen. It contains a QUESTION followed by ANSWER OPTIONS.
 
+YOUR TASK:
+1. Identify the question and all answer options from the text.
+2. Answer options may be labeled (A/B/C/D or 1/2/3/4) or unlabeled (just separate lines).
+3. If there are exactly 4 options → it is likely a SINGLE-answer question → respond with ONE number.
+4. If there are more than 4 options or the question says "select all" / "chọn nhiều" → respond with MULTIPLE numbers separated by commas.
+5. Number the options in order starting from 1 (first option = 1, second = 2, etc.).
+
+RESPOND WITH ONLY THE ANSWER NUMBER(S). Nothing else.
+Examples: "2" or "1,3" or "4"
+
+---
 {content}
+---
 
 Answer:'''
 
